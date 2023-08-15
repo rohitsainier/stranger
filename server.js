@@ -10,7 +10,7 @@ const io = socket(server, {
     }
 });
 
-const rooms = {}; // Object to store room information.
+const rooms = []; // Object to store room information.
 
 /**
  * Handle socket.io connections and events for video conferencing.
@@ -24,20 +24,32 @@ io.on("connection", socket => {
      * @param {string} roomID - The ID of the room to join.
      */
     socket.on("join room", roomID => {
-        if (rooms[roomID]) {
-            rooms[roomID].push(socket.id);
+        const availableRooms = rooms.filter(room => room.users.length === 1);
+        if (availableRooms.length === 0) {
+            // Create new room
+            console.log("if")
+            createNewRoom(roomID, socket.id)
+        }  else {
+            // add new user into the existing room
+            console.log("else")
+            addIntoExistingRoom(availableRooms[0].id, socket.id)
+        }
+        
+        if (availableRooms.length !== 0) {
+            const room = rooms.find(room => room.id === availableRooms[0].id);
+            const otherUser = room.users.find(userId => userId !== socket.id);
+            informUsers(otherUser, socket)
         } else {
-            rooms[roomID] = [socket.id];
+            const room = rooms.find(room => room.id === roomID);
+            const otherUser = room.users.find(userId => userId !== socket.id);
+            informUsers(otherUser, socket)
         }
         console.log("Rooms", rooms)
-        // Find the other user in the room and establish connections.
-        const otherUser = rooms[roomID].find(id => id !== socket.id);
-        console.log("OtherUser", otherUser)
-        console.log("CurrentUser", socket.id)
-        if (otherUser) {
-            socket.emit("other user", otherUser); // Inform the current user about the other user.
-            socket.to(otherUser).emit("user joined", socket.id); // Inform the other user about the current user.
-        }
+    });
+
+    socket.on("leave room", (roomID, userId) => {
+        // remove user from existing room based upon roomID or remove room
+        leaveRoom(roomID, userId)
     });
 
     /**
@@ -68,6 +80,46 @@ io.on("connection", socket => {
     });
 });
 
+// Function to create a new room
+function createNewRoom(roomId, user) {
+    const newRoom = new Room(roomId, [user]);
+    rooms.push(newRoom);
+}
+
+// Function to add a new user into existing room
+function addIntoExistingRoom(roomId, user) {
+    const room = rooms.find(room => room.id === roomId);
+    room.users.push(user);
+}
+
+// Function to remove user from existing room based upon roomID
+function leaveRoom(roomId, userId) {
+    const room = rooms.find(room => room.id === roomId);
+    const users = room.users
+    if (users.length === 1) {
+        rooms.pop(room)
+    } else {
+        const indexToRemove = users.indexOf(userId);
+        users.splice(indexToRemove, 1);
+    }
+    
+}
+
+// Function to notify join room
+function informUsers(otherUser, socket) {
+    if (otherUser) {
+        socket.emit("other user", otherUser); // Inform the current user about the other user.
+        socket.to(otherUser).emit("user joined", socket.id); // Inform the other user about the current user.
+    }
+}
+
 // Start the server and listen on port 8000.
 server.listen(8000, () => console.log('Server is running on port 8000'));
 
+
+class Room {
+    constructor(id, users) {
+        this.id = id;
+        this.users = users;
+    }
+}
