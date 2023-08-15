@@ -47,9 +47,9 @@ io.on("connection", socket => {
         console.log("Rooms", rooms)
     });
 
-    socket.on("leave room", (roomID, userId) => {
+    socket.on("leave room", (roomID) => {
         // remove user from existing room based upon roomID or remove room
-        leaveRoom(roomID, userId)
+        leaveRoom(roomID, socket.id)
     });
 
     /**
