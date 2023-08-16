@@ -42,8 +42,12 @@ const Room = (props) => {
             socketRef.current.on("answer", handleAnswer);
 
             socketRef.current.on("ice-candidate", handleNewICECandidateMsg);
+
+            // Add event listener for beforeunload to handle user leaving the room.
+            window.addEventListener("beforeunload", handleBeforeUnload);
         });
     }, []);
+    
 
     // Function to initiate a call to another user.
     function callUser(userID) {
@@ -154,6 +158,15 @@ const Room = (props) => {
     function handleTrackEvent(e) {
         partnerVideo.current.srcObject = e.streams[0];
     }
+    // Function to handle the event window or tab or browser closed. 
+    function handleBeforeUnload(e) {
+        // Clean up logic (if needed).
+        if (socketRef.current) {
+            socketRef.current.emit("leave room");
+            socketRef.current.disconnect();
+        }
+    }
+
 
     // Render user and partner video elements.
     return (

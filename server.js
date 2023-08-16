@@ -34,7 +34,7 @@ io.on("connection", socket => {
             console.log("else")
             addIntoExistingRoom(availableRooms[0].id, socket.id)
         }
-        
+        // TODO:- Code Refractor Required
         if (availableRooms.length !== 0) {
             const room = rooms.find(room => room.id === availableRooms[0].id);
             const otherUser = room.users.find(userId => userId !== socket.id);
@@ -47,9 +47,9 @@ io.on("connection", socket => {
         console.log("Rooms", rooms)
     });
 
-    socket.on("leave room", (roomID) => {
+    socket.on("leave room", () => {
         // remove user from existing room based upon roomID or remove room
-        leaveRoom(roomID, socket.id)
+        leaveRoom(socket.id)
     });
 
     /**
@@ -93,16 +93,20 @@ function addIntoExistingRoom(roomId, user) {
 }
 
 // Function to remove user from existing room based upon roomID
-function leaveRoom(roomId, userId) {
-    const room = rooms.find(room => room.id === roomId);
-    const users = room.users
-    if (users.length === 1) {
-        rooms.pop(room)
-    } else {
-        const indexToRemove = users.indexOf(userId);
-        users.splice(indexToRemove, 1);
+function leaveRoom(userId) {
+    // TODO:- Code Refractor Required
+    for (const room of rooms) {
+        const index = room.users.indexOf(userId);
+        if (index !== -1) {
+            room.users.splice(index, 1); // Remove the user from the users array
+            if (room.users.length === 0) {
+                rooms.splice(rooms.indexOf(room), 1); // Remove the room if it's empty
+            }
+            break; // No need to continue iterating
+        }
     }
-    
+
+    console.log(rooms);
 }
 
 // Function to notify join room
