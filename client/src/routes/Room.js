@@ -10,14 +10,15 @@ import io from "socket.io-client";
  * @returns {JSX.Element} Component rendering user and partner video streams.
  */
 const Room = (props) => {
-    // State to track if the user has left the room
-    const [userLeft, setUserLeft] = useState(false);
     const userVideo = useRef();          // Reference to the user's video element.
     const partnerVideo = useRef();       // Reference to the partner's video element.
     const peerRef = useRef();            // Reference to the WebRTC peer connection.
     const socketRef = useRef();          // Reference to the socket.io connection.
     const otherUser = useRef();          // Reference to the ID of the other user.
     const userStream = useRef();         // Reference to the user's media stream.
+    const chatDataChannel = useRef();    // Reference to the user's chat stream.
+    const [messages, setMessages] = useState([]);
+    const [text, setText] = useState("");
 
     useEffect(() => {
         // Access user's video stream and set it as source for user's video element.
@@ -39,7 +40,7 @@ const Room = (props) => {
                 otherUser.current = userID;
             });
 
-            socketRef.current.on("offer", handleReceiveCall);
+            socketRef.current.on("offer", handleOffer);
 
             socketRef.current.on("answer", handleAnswer);
 
@@ -54,11 +55,50 @@ const Room = (props) => {
     // Function to initiate a call to another user.
     function callUser(userID) {
         // Create a new peer connection for communication.
-        peerRef.current = createPeer(userID);
+        peerRef.current = createPeer(userID);      
+        
+        // Setup chat data channel
+        createChatDataChannel();
 
         // Add user's tracks to the peer connection.
         userStream.current.getTracks().forEach(track => peerRef.current.addTrack(track, userStream.current));
     }
+
+    // Function to initiate a chat data channel.
+    function createChatDataChannel() {
+        chatDataChannel.current = peerRef.current.createDataChannel("chatDataChannel");
+        console.log("Chat data channel created");
+        chatDataChannel.current.onmessage = handleReceivedMessage;
+    }
+
+    // Function to handle chat data channle stream.
+    function handleReceivedMessage(e) {
+        setMessages(messages => [...messages,{mine: false, value: e.data}]);
+        console.log("Received message:", e.data)
+    }
+
+    // Function to handle data channles.
+    function handleDataChannels(peerRef) {
+        peerRef.current.ondatachannel = (event) => {
+            console.log("Received Event", event);
+            chatDataChannel.current = event.channel;
+            chatDataChannel.current.onmessage = handleReceivedMessage;
+        }
+    }
+
+    // Function to send message over chat data channel.
+    function sendMessage() {
+        if (chatDataChannel.current.readyState === "open") {
+            const message = text;
+            chatDataChannel.current.send(message);
+            setMessages(messages => [...messages, { mine: true, value: message }]);
+            console.log("Message Sent:", message);
+            setText(""); // Clear the text input after sending
+        } else {
+            console.log("Chat data channel is not yet ready to send messages.");
+        }
+    }
+
 
     // Function to create a new WebRTC peer connection with necessary configuration.
     function createPeer(userID) {
@@ -104,10 +144,13 @@ const Room = (props) => {
     }
 
     // Function to handle the reception of an offer to initiate a call.
-    function handleReceiveCall(incoming) {
+    function handleOffer(incoming) {
         // Create a new peer connection to handle the call.
         peerRef.current = createPeer();
         
+        // Setup Handle Data Channels
+        handleDataChannels(peerRef);
+
         // Set remote description based on received SDP.
         const desc = new RTCSessionDescription(incoming.sdp);
         peerRef.current.setRemoteDescription(desc).then(() => {
@@ -166,10 +209,6 @@ const Room = (props) => {
         if (socketRef.current) {
             socketRef.current.emit("leave room");
             socketRef.current.disconnect();
-
-             // Set the userLeft state to true
-             setUserLeft(true);
-             peerRef.current.destroy();
         }
     }
 
@@ -181,12 +220,19 @@ const Room = (props) => {
                     <video className="video" autoPlay ref={userVideo} />
                     <div className="video-label">You</div>
                 </div>
-                {!userLeft && (
-                    <div className="video-wrapper">
-                        <video className="video" autoPlay ref={partnerVideo} />
-                        <div className="video-label">Partner</div>
-                    </div>
-                )}
+                <div className="video-wrapper">
+                    <video className="video" autoPlay ref={partnerVideo} />
+                    <div className="video-label">Partner</div>
+                </div>
+            </div>
+            <div className="message-box">
+                <input
+                    type="text"
+                    placeholder="Type a message..."
+                    value={text}
+                    onChange={(e) => setText(e.target.value)} // Update the 'text' state
+                />
+                <button onClick={sendMessage}>Send Message</button>
             </div>
             <div className="copyright">Copyright &copy; Stranger</div>
         </div>
