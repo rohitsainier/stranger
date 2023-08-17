@@ -27,22 +27,27 @@ io.on("connection", socket => {
         const availableRooms = rooms.filter(room => room.users.length === 1);
         if (availableRooms.length === 0) {
             // Create new room
-            console.log("if")
             createNewRoom(roomID, socket.id)
         }  else {
             // add new user into the existing room
-            console.log("else")
             addIntoExistingRoom(availableRooms[0].id, socket.id)
         }
-        // TODO:- Code Refractor Required
         if (availableRooms.length !== 0) {
             const room = rooms.find(room => room.id === availableRooms[0].id);
-            const otherUser = room.users.find(userId => userId !== socket.id);
-            informUsers(otherUser, socket)
+            if (room) {
+             const otherUser = room.users.find(userId => userId !== socket.id);
+             if (otherUser) {
+                 informUsers(otherUser, socket);
+             }
+            }
         } else {
-            const room = rooms.find(room => room.id === roomID);
-            const otherUser = room.users.find(userId => userId !== socket.id);
-            informUsers(otherUser, socket)
+         const room = rooms.find(room => room.id === roomID);
+            if (room) {
+                const otherUser = room.users.find(userId => userId !== socket.id);
+                if (otherUser) {
+                    informUsers(otherUser, socket);
+                }
+            }
         }
         console.log("Rooms", rooms)
     });
@@ -94,18 +99,16 @@ function addIntoExistingRoom(roomId, user) {
 
 // Function to remove user from existing room based upon roomID
 function leaveRoom(userId) {
-    // TODO:- Code Refractor Required
-    for (const room of rooms) {
-        const index = room.users.indexOf(userId);
-        if (index !== -1) {
-            room.users.splice(index, 1); // Remove the user from the users array
-            if (room.users.length === 0) {
-                rooms.splice(rooms.indexOf(room), 1); // Remove the room if it's empty
-            }
-            break; // No need to continue iterating
+    console.log("Leave room event receievd")
+    const roomIndex = rooms.findIndex(room => room.users.includes(userId));
+    if (roomIndex !== -1) {
+        const room = rooms[roomIndex];
+        room.users.splice(room.users.indexOf(userId), 1); // Remove the user from the users array
+
+        if (room.users.length === 0) {
+            rooms.splice(roomIndex, 1); // Remove the room if it's empty
         }
     }
-
     console.log(rooms);
 }
 
