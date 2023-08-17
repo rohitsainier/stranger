@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import io from "socket.io-client";
 
 /**
@@ -10,6 +10,8 @@ import io from "socket.io-client";
  * @returns {JSX.Element} Component rendering user and partner video streams.
  */
 const Room = (props) => {
+    // State to track if the user has left the room
+    const [userLeft, setUserLeft] = useState(false);
     const userVideo = useRef();          // Reference to the user's video element.
     const partnerVideo = useRef();       // Reference to the partner's video element.
     const peerRef = useRef();            // Reference to the WebRTC peer connection.
@@ -164,15 +166,29 @@ const Room = (props) => {
         if (socketRef.current) {
             socketRef.current.emit("leave room");
             socketRef.current.disconnect();
+
+             // Set the userLeft state to true
+             setUserLeft(true);
+             peerRef.current.destroy();
         }
     }
 
-
     // Render user and partner video elements.
     return (
-        <div>
-            <video autoPlay ref={userVideo} />
-            <video autoPlay ref={partnerVideo} />
+        <div className="video-page">
+            <div className="video-container">
+                <div className="video-wrapper">
+                    <video className="video" autoPlay ref={userVideo} />
+                    <div className="video-label">You</div>
+                </div>
+                {!userLeft && (
+                    <div className="video-wrapper">
+                        <video className="video" autoPlay ref={partnerVideo} />
+                        <div className="video-label">Partner</div>
+                    </div>
+                )}
+            </div>
+            <div className="copyright">Copyright &copy; Stranger</div>
         </div>
     );
 };
