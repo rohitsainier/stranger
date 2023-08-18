@@ -50,6 +50,11 @@ const Room = (props) => {
             window.addEventListener("beforeunload", handleBeforeUnload);
         });
     }, []);
+
+    // Log messages whenever they change
+    useEffect(() => {
+        console.log("Messages:", messages);
+    }, [messages]);
     
 
     // Function to initiate a call to another user.
@@ -73,8 +78,9 @@ const Room = (props) => {
 
     // Function to handle chat data channle stream.
     function handleReceivedMessage(e) {
-        setMessages(messages => [...messages,{mine: false, value: e.data}]);
+        setMessages(messages => [...messages, {mine: false, value: e.data}]);
         console.log("Received message:", e.data)
+        console.log("Messages:", messages)
     }
 
     // Function to handle data channles.
@@ -222,7 +228,7 @@ const Room = (props) => {
                 </div>
                 <div className="video-wrapper">
                     <video className="video" autoPlay ref={partnerVideo} />
-                    <div className="video-label">Partner</div>
+                    <div className="video-label">Stranger</div>
                 </div>
             </div>
             <div className="message-box">
