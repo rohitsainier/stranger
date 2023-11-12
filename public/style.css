@@ -1,0 +1,21 @@
+body {
+    font-family: 'Arial', sans-serif;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    background-color: #f0f0f0;
+  }
+  
+  #video-container {
+    display: flex;
+  }
+  
+  video {
+    margin: 10px;
+    border: 1px solid #333;
+    border-radius: 5px;
+  }
+  

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="style.css">
+  <title>Random Video Call</title>
+</head>
+<body>
+  <div id="video-container">
+    <video id="local-video" autoplay muted></video>
+    <video id="remote-video" autoplay></video>
+  </div>
+  <div id="buttons">
+    <button id="start-call" onclick="startCall()">Start Call</button>
+    <button id="end-call" onclick="endCall()" disabled>End Call</button>
+  </div>
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>

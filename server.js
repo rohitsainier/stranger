@@ -1,89 +1,90 @@
 const express = require("express");
 const http = require("http");
+
 const app = express();
+app.use(express.static("public"));
+
 const server = http.createServer(app);
-const socket = require("socket.io");
-const io = socket(server, {
+
+const io = require("socket.io")(server, {
+  allowEIO3: true, //False by default
   cors: {
     origin: "*",
     methods: ["GET", "POST"],
   },
 });
 
-const rooms = []; // Object to store room information.
+// Object to store room information.
+const rooms = [];
 
-/**
- * Handle socket.io connections and events for video conferencing.
- *
- * @param {Socket} socket - The socket instance for a connected client.
- */
 io.on("connection", (socket) => {
-  /**
-   * Handle a client's request to join a room for video conferencing.
-   *
-   * @param {string} roomID - The ID of the room to join.
-   */
-  socket.on("join room", (roomID) => {
-    const availableRooms = rooms.filter((room) => room.users.length === 1);
-    if (availableRooms.length === 0) {
-      // Create new room
-      createNewRoom(roomID, socket.id);
+  console.log("User connected with ID:", socket.id);
+  const roomID = generateRandomRoomID();
+  const availableRooms = rooms.filter((room) => room.users.length === 1);
+
+  if (availableRooms.length === 0) {
+    // Create new room
+    createNewRoom(roomID, socket.id);
+  } else {
+    // add new user into the existing room
+    addIntoExistingRoom(availableRooms[0].id, socket.id);
+  }
+  // Rooms
+  console.log("Rooms:", rooms);
+
+  // Send a welcome message to the connected user
+  socket.emit("message", {
+    type: "text",
+    content: "Welcome to the random video call!",
+  });
+
+  // Handle WebRTC signaling messages from the client
+  socket.on("message", (message) => {
+    // Check the message type
+    if (message.type === "offer") {
+      // Handle the offer and send back an answer
+      handleOffer(socket, message);
+    } else if (message.type === "answer") {
+      // Handle the answer
+      handleAnswer(socket, message);
+    } else if (message.type === "candidate") {
+      // Handle ICE candidate
+      handleCandidate(socket, message);
     } else {
-      // add new user into the existing room
-      addIntoExistingRoom(availableRooms[0].id, socket.id);
+      console.warn("Unknown message type:", message.type);
     }
-    if (availableRooms.length !== 0) {
-      const room = rooms.find((room) => room.id === availableRooms[0].id);
-      if (room) {
-        const otherUser = room.users.find((userId) => userId !== socket.id);
-        if (otherUser) {
-          informUsers(otherUser, socket);
-        }
-      }
-    } else {
-      const room = rooms.find((room) => room.id === roomID);
-      if (room) {
-        const otherUser = room.users.find((userId) => userId !== socket.id);
-        if (otherUser) {
-          informUsers(otherUser, socket);
-        }
-      }
-    }
-    console.log("Rooms", rooms);
   });
 
-  socket.on("leave room", () => {
-    // remove user from existing room based upon roomID or remove room
-    leaveRoom(socket.id);
-  });
+  // Store the user ID and corresponding socket ID
+  const userId = socket.id;
 
-  /**
-   * Handle the transmission of an offer message to a specific target user.
-   *
-   * @param {Object} payload - The offer message payload containing target and offer SDP.
-   */
-  socket.on("offer", (payload) => {
-    io.to(payload.target).emit("offer", payload); // Emit the offer to the target user.
-  });
+  // Send the user ID to the connected user
+  socket.emit("message", { type: "userId", userId });
 
-  /**
-   * Handle the transmission of an answer message to a specific target user.
-   *
-   * @param {Object} payload - The answer message payload containing target and answer SDP.
-   */
-  socket.on("answer", (payload) => {
-    io.to(payload.target).emit("answer", payload); // Emit the answer to the target user.
-  });
-
-  /**
-   * Handle the transmission of ICE candidate information to a specific target user.
-   *
-   * @param {Object} incoming - The ICE candidate information payload containing target and candidate.
-   */
-  socket.on("ice-candidate", (incoming) => {
-    io.to(incoming.target).emit("ice-candidate", incoming.candidate); // Emit the ICE candidate to the target user.
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", userId);
+    // Remove the user ID and corresponding socket ID from the map
   });
 });
+
+function handleOffer(socket, offer) {
+  console.log("Received offer from:", offer.from);
+}
+
+// Handle the answer from the client
+function handleAnswer(socket, answer) {
+  console.log("Received answer:", answer.from);
+}
+
+// Handle ICE candidates from the client
+function handleCandidate(socket, candidate) {
+  console.log("Received ICE candidate:", candidate.from);
+}
+
+// Funcation to generate a random room ID
+function generateRandomRoomID() {
+  return Math.floor(Math.random() * 10000);
+}
 
 // Function to create a new room
 function createNewRoom(roomId, user) {
@@ -99,31 +100,11 @@ function addIntoExistingRoom(roomId, user) {
   }
 }
 
-// Function to remove user from existing room based upon roomID
-function leaveRoom(userId) {
-  console.log("Leave room event receievd");
-  const roomIndex = rooms.findIndex((room) => room.users.includes(userId));
-  if (roomIndex !== -1) {
-    const room = rooms[roomIndex];
-    room.users.splice(room.users.indexOf(userId), 1); // Remove the user from the users array
+const PORT = process.env.PORT || 3000;
 
-    if (room.users.length === 0) {
-      rooms.splice(roomIndex, 1); // Remove the room if it's empty
-    }
-  }
-  console.log(rooms);
-}
-
-// Function to notify join room
-function informUsers(otherUser, socket) {
-  if (otherUser) {
-    socket.emit("other user", otherUser); // Inform the current user about the other user.
-    socket.to(otherUser).emit("user joined", socket.id); // Inform the other user about the current user.
-  }
-}
-
-// Start the server and listen on port 8000.
-server.listen(8000, () => console.log("Server is running on port 8000"));
+server.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
 
 class Room {
   constructor(id, users) {
