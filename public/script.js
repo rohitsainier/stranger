@@ -4,7 +4,6 @@ const remoteVideo = document.getElementById("remote-video");
 const startCallButton = document.getElementById("start-call");
 const endCallButton = document.getElementById("end-call");
 let peerConnection;
-let userId; // Variable to store the user ID
 
 console.log("Trying to connect to the server...");
 
@@ -97,7 +96,7 @@ function createOffer() {
       if (peerConnection.localDescription) {
         socket.emit("message", {
           type: "offer",
-          from: userId,
+          from: socket.id,
           sdp: peerConnection.localDescription,
         });
       } else {
@@ -118,7 +117,12 @@ function createOffer() {
 
 // Function to handle the offer from the server
 function handleOffer(message) {
-  const remoteSDP = new RTCSessionDescription(message.sdp);
+  // check if the peer connection exists if not skip
+  if (!peerConnection) {
+    console.error("Peer connection not available.");
+    return;
+  }
+  const remoteSDP = new RTCSessionDescription(message.offer.sdp);
 
   peerConnection
     .setRemoteDescription(remoteSDP)
@@ -131,7 +135,7 @@ function handleOffer(message) {
     .then(() => {
       socket.emit("message", {
         type: "answer",
-        from: userId,
+        from: socket.id,
         sdp: peerConnection.localDescription,
       });
     })
@@ -142,7 +146,12 @@ function handleOffer(message) {
 
 // Function to handle the answer from the server
 function handleAnswer(message) {
-  const remoteSDP = new RTCSessionDescription(message.sdp);
+  // check if the peer connection exists if not skip
+  if (!peerConnection) {
+    console.error("Peer connection not available.");
+    return;
+  }
+  const remoteSDP = new RTCSessionDescription(message.answer.sdp);
 
   peerConnection.setRemoteDescription(remoteSDP).catch((error) => {
     console.error("Error handling answer:", error);
@@ -154,7 +163,7 @@ function handleICECandidateEvent(event) {
   if (event.candidate) {
     socket.emit("message", {
       type: "candidate",
-      from: userId,
+      from: socket.id,
       candidate: event.candidate,
     });
   }
@@ -162,12 +171,18 @@ function handleICECandidateEvent(event) {
 
 // Function to handle remote stream events
 function handleRemoteStreamEvent(event) {
-  remoteVideo.srcObject = event.stream;
+  // add all the track into remote video
+  remoteVideo.srcObject = event.streams[0];
 }
 
 // Function to handle ICE candidate messages from the server
 function handleCandidate(message) {
-  const candidate = new RTCIceCandidate(message.candidate);
+  // check if the peer connection exists if not skip
+  if (!peerConnection) {
+    console.error("Peer connection not available.");
+    return;
+  }
+  const candidate = new RTCIceCandidate(message.candidate.candidate);
 
   peerConnection.addIceCandidate(candidate).catch((error) => {
     console.error("Error handling candidate:", error);
@@ -182,10 +197,7 @@ socket.on("connect", () => {
 // Handle WebRTC signaling messages from the server
 socket.on("message", (message) => {
   console.log("Received message from the server:", message);
-  if (message.type === "userId") {
-    userId = message.userId;
-    console.log("User ID received:", userId);
-  } else if (message.type === "offer") {
+  if (message.type === "offer") {
     handleOffer(message);
   } else if (message.type === "answer") {
     handleAnswer(message);

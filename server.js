@@ -43,13 +43,13 @@ io.on("connection", (socket) => {
     // Check the message type
     if (message.type === "offer") {
       // Handle the offer and send back an answer
-      handleOffer(socket, message);
+      handleOffer(socket, message, availableRooms, roomID);
     } else if (message.type === "answer") {
       // Handle the answer
-      handleAnswer(socket, message);
+      handleAnswer(socket, message, availableRooms, roomID);
     } else if (message.type === "candidate") {
       // Handle ICE candidate
-      handleCandidate(socket, message);
+      handleCandidate(socket, message, availableRooms, roomID);
     } else {
       console.warn("Unknown message type:", message.type);
     }
@@ -63,22 +63,98 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("User disconnected:", userId);
-    // Remove the user ID and corresponding socket ID from the map
+    // Remove the user from room
+    leaveRoom(userId);
   });
 });
 
-function handleOffer(socket, offer) {
+function handleOffer(socket, offer, availableRooms, roomID) {
   console.log("Received offer from:", offer.from);
+  if (availableRooms.length !== 0) {
+    const room = rooms.find((room) => room.id === availableRooms[0].id);
+    if (room) {
+      const otherUser = room.users.find((userId) => userId !== socket.id);
+      // emit the offe to other user
+      console.log("Offer sent to:", otherUser);
+      socket.to(otherUser).emit("message", {
+        type: "offer",
+        from: socket.id,
+        offer,
+      });
+    }
+  } else {
+    const room = rooms.find((room) => room.id === roomID);
+    if (room) {
+      const otherUser = room.users.find((userId) => userId !== socket.id);
+      // emit the offe to other user
+      console.log("Offer sent to:", otherUser);
+      socket.to(otherUser).emit("message", {
+        type: "offer",
+        from: socket.id,
+        offer,
+      });
+    }
+  }
 }
 
 // Handle the answer from the client
-function handleAnswer(socket, answer) {
+function handleAnswer(socket, answer, availableRooms, roomID) {
   console.log("Received answer:", answer.from);
+  if (availableRooms.length !== 0) {
+    const room = rooms.find((room) => room.id === availableRooms[0].id);
+    if (room) {
+      const otherUser = room.users.find((userId) => userId !== socket.id);
+      // emit the offe to other user
+      console.log("Answer sent to:", otherUser);
+      socket.to(otherUser).emit("message", {
+        type: "answer",
+        from: socket.id,
+        answer,
+      });
+    }
+  } else {
+    const room = rooms.find((room) => room.id === roomID);
+    if (room) {
+      const otherUser = room.users.find((userId) => userId !== socket.id);
+      // emit the offe to other user
+      console.log("Answer sent to:", otherUser);
+      socket.to(otherUser).emit("message", {
+        type: "answer",
+        from: socket.id,
+        answer,
+      });
+    }
+  }
 }
 
 // Handle ICE candidates from the client
-function handleCandidate(socket, candidate) {
+function handleCandidate(socket, candidate, availableRooms, roomID) {
   console.log("Received ICE candidate:", candidate.from);
+  if (availableRooms.length !== 0) {
+    const room = rooms.find((room) => room.id === availableRooms[0].id);
+    if (room) {
+      const otherUser = room.users.find((userId) => userId !== socket.id);
+      // emit the offe to other user
+      console.log("candidate sent to:", otherUser);
+      socket.to(otherUser).emit("message", {
+        type: "candidate",
+        from: socket.id,
+        candidate,
+      });
+    }
+  } else {
+    const room = rooms.find((room) => room.id === roomID);
+    if (room) {
+      const otherUser = room.users.find((userId) => userId !== socket.id);
+      // emit the offe to other user
+      console.log("candidate sent to:", otherUser);
+      socket.to(otherUser).emit("message", {
+        type: "candidate",
+        from: socket.id,
+        candidate,
+      });
+    }
+  }
 }
 
 // Funcation to generate a random room ID
@@ -98,6 +174,21 @@ function addIntoExistingRoom(roomId, user) {
   if (room && room.users.length === 1) {
     room.users.push(user);
   }
+}
+
+// Function to remove user from existing room based upon roomID
+function leaveRoom(userId) {
+  console.log("Removing user from room:", userId);
+  const roomIndex = rooms.findIndex((room) => room.users.includes(userId));
+  if (roomIndex !== -1) {
+    const room = rooms[roomIndex];
+    room.users.splice(room.users.indexOf(userId), 1); // Remove the user from the users array
+
+    if (room.users.length === 0) {
+      rooms.splice(roomIndex, 1); // Remove the room if it's empty
+    }
+  }
+  console.log(rooms);
 }
 
 const PORT = process.env.PORT || 3000;
